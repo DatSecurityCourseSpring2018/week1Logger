@@ -2,17 +2,14 @@ package logger;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URL;
 import java.net.URLDecoder;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
 
 /**
  The purpose of Logger is to...
@@ -21,43 +18,49 @@ import java.util.logging.Level;
  */
 public class Logger implements HttpHandler {
 
+    private static final int NO_RESPONSE_BODY = -1;
+    private LogFile logFile;
+
+    public Logger() {
+        logFile = new LogFile();
+    }
+
     @Override
-    public void handle( HttpExchange t ) throws IOException  {
+    public void handle( HttpExchange t ) throws IOException {
         try {
-            System.out.println( "We got:" );
-            t.getRequestHeaders().forEach(
-                    (key,value) -> {System.out.println("Key: " + key + " value: " + value);}
-            );
-            readQuery(t);
-            t.sendResponseHeaders( 204, -1 );
+            URI uri = t.getRequestURI();
+            System.out.println( "URI query: " + uri.getRawQuery() );
+
+            Map<String, String> params = splitQuery( t.getRequestURI() );
+            if ( params.containsKey( "log" ) ) {
+                log( params.get( "log" ) );
+            }
+            t.sendResponseHeaders( 204, NO_RESPONSE_BODY );
         } catch ( IOException ex ) {
-            System.out.println( "Shit happened: " + ex.getMessage() );
-            t.sendResponseHeaders( 500, -1);
+            try {
+                System.out.println( "Exception: " + ex.getMessage() );
+            } finally {
+                t.sendResponseHeaders( 500, NO_RESPONSE_BODY );
+            }
         }
     }
 
-    private void readQuery( HttpExchange t ) throws IOException {
-        URI uri = t.getRequestURI();
-        System.out.println( "URI query: " + uri.getRawQuery() );
-        Map<String, String> params = splitQuery( t.getRequestURI() );
-        System.out.println( "--- params: " );
-        params.forEach( 
-                (key,value) -> {System.out.println("Key: " + key + " value: " + value);}
-        );
-        System.out.println( "---- end params ----" );
+    private void log( String logMsg ) throws IOException {
+        String date = String.valueOf( ZonedDateTime.now( ZoneOffset.UTC ) );
+        logFile.log( date + " - " + logMsg );
+    }
 
+    public static Map<String, String> splitQuery( URI uri ) throws UnsupportedEncodingException {
+        Map<String, String> query_pairs = new HashMap<String, String>();
+        String query = uri.getRawQuery();
+        String[] pairs = query.split( "&" );
+        for ( String pair : pairs ) {
+            int idx = pair.indexOf( "=" );
+            query_pairs.put(
+                    URLDecoder.decode( pair.substring( 0, idx ), "UTF-8" ),
+                    URLDecoder.decode( pair.substring( idx + 1 ), "UTF-8" ) );
+        }
+        return query_pairs;
     }
-    
-    public static Map<String, String> splitQuery(URI uri) throws UnsupportedEncodingException {
-    Map<String, String> query_pairs = new HashMap<String, String>();
-    String query = uri.getRawQuery();
-    String[] pairs = query.split("&");
-    for (String pair : pairs) {
-        int idx = pair.indexOf("=");
-        query_pairs.put(
-                URLDecoder.decode(pair.substring(0, idx), "UTF-8"), 
-                URLDecoder.decode(pair.substring(idx + 1), "UTF-8"));
-    }
-    return query_pairs;
-}
+
 }
