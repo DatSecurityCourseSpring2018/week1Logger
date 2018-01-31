@@ -6,7 +6,10 @@ import java.net.InetSocketAddress;
 
 /**
  This server is based on:
- https://docs.oracle.com/javase/8/docs/jre/api/net/httpserver/spec/com/sun/net/httpserver/package-summary.html
+ https://docs.oracle.com/javase/8/docs/jre/api/net/httpserver/spec/com/sun/net/httpserver/package-summary.html.
+
+ The server assumes the environment variable LOG_PATH is set to a file
+where it has the permissions to create and append to that file.
 
  @author kasper
  */
